@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.npy
+*.png
+*.jpg
+diag_*.png
+grasp_log.csv
+diagnostics/
+.claude/

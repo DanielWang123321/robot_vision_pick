@@ -1,0 +1,7 @@
+pyrealsense2
+xarm-python-sdk
+opencv-python
+numpy
+requests
+python-dotenv
+pyyaml

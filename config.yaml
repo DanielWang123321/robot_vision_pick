@@ -1,0 +1,39 @@
+robot:
+  ip: "192.168.1.60"
+  safe_bounds:
+    x: [200, 600]
+    y: [-500, 500]
+    z: [0, 500]
+  detect_xyz: [300, -200, 400]
+  close_detect_z: 300
+  release_xyz: [300,350,300]
+  lift_offset_z: 100
+  gripper_z_mm: 172
+  grasp_depth_offset: 20
+  grasping_min_z: 0
+  gripper_max_opening: 84
+  gripper_open: 800
+  gripper_close: 0
+  min_object_dim_mm: 20
+  min_object_height_mm: 0.5
+
+camera:
+  color_width: 1920
+  color_height: 1080
+  depth_width: 1280
+  depth_height: 720
+  fps: 30
+  euler_eef_to_color: [0.067, -0.031, 0.022, -0.004, -0.008, 1.59]
+  depth_sample_radius: 5
+
+llm:
+  openrouter_url: "https://openrouter.ai/api/v1/chat/completions"
+  model: "anthropic/claude-sonnet-4.6"
+
+diagnostics:
+  enabled: true
+  output_dir: "diagnostics"
+  save_color: true
+  save_depth: true
+  save_llm_raw: true
+  save_assessments: true
