@@ -38,7 +38,6 @@ class TestPlanGraspForObject(unittest.TestCase):
         self.rc = {
             "detect_xyz": [300, 0, 400],
             "close_detect_z": 200,
-            "gripper_max_opening": 84,
             "gripper_z_mm": 172,
             "grasp_depth_offset": 20,
             "grasping_min_z": 0,

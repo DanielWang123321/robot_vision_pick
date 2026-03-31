@@ -12,7 +12,7 @@ from pick_models import CameraFrameError, PickResult, RobotCommandError
 logger = logging.getLogger(__name__)
 
 GRASP_LOG_FILE = "grasp_log.csv"
-GRASP_LOG_FIELDS = ["timestamp", "object_name", "confidence", "grasp_x", "grasp_y", "grasp_z", "success", "reason"]
+GRASP_LOG_FIELDS = ["timestamp", "object_name", "confidence", "grasp_x", "grasp_y", "grasp_z", "success", "reason", "verified"]
 
 
 def log_pick_result(pick_result, log_file=GRASP_LOG_FILE):
@@ -28,6 +28,7 @@ def log_pick_result(pick_result, log_file=GRASP_LOG_FILE):
             detected_object = pick_result.detected_object
             if detected_object is None and plan is not None:
                 detected_object = plan.detected_object
+            verified_str = "" if pick_result.verified is None else str(pick_result.verified)
             writer.writerow(
                 {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -38,6 +39,7 @@ def log_pick_result(pick_result, log_file=GRASP_LOG_FILE):
                     "grasp_z": "" if plan is None else f"{plan.grasp_z_mm:.1f}",
                     "success": pick_result.success,
                     "reason": pick_result.reason,
+                    "verified": verified_str,
                 }
             )
     except OSError as exc:

@@ -25,6 +25,8 @@ MULTI_PROMPT = (
     f"Find ALL standalone objects on the table in this top-down image. Ignore the table itself, robot hardware, "
     f"background clutter, and anything inside containers. Objects can be fruits, tissues, cups, bottles, tools, "
     f"stationery, toys, and other common desktop items.\n"
+    f"注意区分外观相似的水果：猕猴桃(kiwi)棕色/深绿色毛糙表皮有细小绒毛；"
+    f"柠檬(lemon)亮黄色光滑表皮两端有尖突；葡萄(grape)一整串绿色小圆粒。\n"
     f"Return a JSON array. One object per item. Use this schema exactly:\n"
     "["
     "{"
@@ -45,6 +47,29 @@ MULTI_PROMPT = (
     f"Return [] if no objects are found."
 )
 
+TARGET_SYSTEM_PROMPT = (
+    f"You are a robot vision assistant for fruit picking. "
+    f"Detect only the allowed targets in a {LLM_WIDTH}x{LLM_HEIGHT} top-down image. "
+    f"Return JSON only."
+)
+
+TARGET_MULTI_PROMPT = (
+    "Detect only these targets: "
+    "green_grape_bunch = one whole bunch of green grapes, "
+    "brown_kiwi = one kiwi fruit (can appear brown, golden, or yellowish, with rough or fuzzy skin). "
+    "For grapes, return the whole bunch as one object, not single grapes. "
+    "If unsure whether an object is a target, include it with a lower confidence score. "
+    "Return a JSON array using "
+    '[{"name":"<english name>","canonical_name":"<green_grape_bunch|brown_kiwi>","category":"fruit","px":<int>,"py":<int>,"bbox":{"x1":<int>,"y1":<int>,"x2":<int>,"y2":<int>},"graspable":<true_or_false>,"grasp_reason":"<short reason>","confidence":<0_to_1>}]. '
+    f"Use {LLM_WIDTH}x{LLM_HEIGHT} coordinates. Return [] if no target is found."
+)
+
+VERIFY_SYSTEM_PROMPT = (
+    "You verify fruit identity for a picking robot. "
+    "Allowed targets: green_grape_bunch and brown_kiwi. "
+    "Return JSON only."
+)
+
 
 def _normalize_canonical_name(value):
     text = str(value or "").strip().lower()
@@ -52,6 +77,48 @@ def _normalize_canonical_name(value):
     text = re.sub(r"[^\w\u4e00-\u9fff]+", "_", text)
     text = re.sub(r"_+", "_", text).strip("_")
     return text or "unknown"
+
+
+TARGET_DISPLAY_NAMES = {
+    "green_grape_bunch": "\u4e00\u4e32\u7eff\u8272\u8461\u8404",
+    "brown_kiwi": "\u7315\u7334\u6843",
+}
+
+TARGET_ENGLISH_NAMES = {
+    "green_grape_bunch": "green grape bunch",
+    "brown_kiwi": "brown kiwi",
+}
+
+TARGET_CANONICAL_ALIASES = {
+    "green_grape_bunch": "green_grape_bunch",
+    "green_grapes": "green_grape_bunch",
+    "green_grape": "green_grape_bunch",
+    "grape_bunch": "green_grape_bunch",
+    "bunch_of_green_grapes": "green_grape_bunch",
+    "bunch_of_grapes": "green_grape_bunch",
+    "grapes": "green_grape_bunch",
+    "\u4e00\u4e32\u7eff\u8272\u8461\u8404": "green_grape_bunch",
+    "\u8461\u8404": "green_grape_bunch",
+    "brown_kiwi": "brown_kiwi",
+    "kiwi": "brown_kiwi",
+    "kiwifruit": "brown_kiwi",
+    "brown_kiwifruit": "brown_kiwi",
+    "\u7315\u7334\u6843": "brown_kiwi",
+    "\u5947\u5f02\u679c": "brown_kiwi",
+}
+
+
+def _normalize_target_canonical_name(value):
+    canonical = _normalize_canonical_name(value)
+    return TARGET_CANONICAL_ALIASES.get(canonical, canonical)
+
+
+def _display_name_for_target(canonical_name, fallback_name):
+    return TARGET_DISPLAY_NAMES.get(canonical_name, fallback_name)
+
+
+def _english_name_for_target(canonical_name, fallback_name):
+    return TARGET_ENGLISH_NAMES.get(canonical_name, fallback_name)
 
 
 def _clamp(value, lower, upper):
@@ -66,7 +133,7 @@ class LLMDetector:
         self.last_raw_response_text = None
 
     def detect_multi(self, color_image, max_retries=2):
-        """Detect all table objects in color_image and scale results to the original image."""
+        """Detect allowed target fruits in color_image and scale results to the original image."""
         self.last_raw_response_text = None
         orig_h, orig_w = color_image.shape[:2]
 
@@ -76,7 +143,11 @@ class LLMDetector:
 
         for attempt in range(max_retries + 1):
             try:
-                text = self._call_api(b64_image, MULTI_PROMPT)
+                text = self._call_api(
+                    b64_image,
+                    TARGET_MULTI_PROMPT,
+                    system_prompt=TARGET_SYSTEM_PROMPT,
+                )
                 results = self._parse_multi_response(text)
                 if results is not None:
                     scaled = [self._scale_detection(result, orig_w, orig_h) for result in results]
@@ -150,17 +221,21 @@ class LLMDetector:
 
         _, jpeg_buf = cv2.imencode(".jpg", crop_image, [cv2.IMWRITE_JPEG_QUALITY, 85])
         b64_image = base64.b64encode(jpeg_buf).decode("utf-8")
+        expected_canonical = _normalize_target_canonical_name(expected_name)
+        expected_label = _english_name_for_target(expected_canonical, str(expected_name))
 
         prompt = (
-            f"You see a close-up of an object from a robot camera. "
-            f"Is this object a \"{expected_name}\"?\n"
-            f"Reply ONLY with JSON: {{\"match\": true}} or {{\"match\": false, \"actual\": \"<what you see>\"}}"
+            "You see a close-up from a robot camera. "
+            "Allowed targets: green_grape_bunch (one whole bunch of green grapes) "
+            "and brown_kiwi (one brown kiwi with rough or fuzzy skin). "
+            f'Is this object "{expected_label}"?\n'
+            'Reply ONLY with JSON: {"match": true} or {"match": false, "actual": "<english label>"}'
         )
 
         try:
             text = self._call_api(
                 b64_image, prompt,
-                system_prompt="You verify object identity. Return ONLY valid JSON.",
+                system_prompt=VERIFY_SYSTEM_PROMPT,
                 max_tokens=60,
                 timeout=15,
             )
@@ -281,11 +356,17 @@ class LLMDetector:
                 if category not in CATEGORIES:
                     category = "unknown"
 
+                canonical_name = _normalize_target_canonical_name(item.get("canonical_name") or item.get("name"))
+                if canonical_name not in TARGET_DISPLAY_NAMES:
+                    logger.debug("Skipping non-target item: %s", item)
+                    continue
+
+                raw_name = str(item.get("name", "unknown"))
                 results.append(
                     {
-                        "name": str(item.get("name", "unknown")),
-                        "canonical_name": _normalize_canonical_name(item.get("canonical_name") or item.get("name")),
-                        "category": category,
+                        "name": _display_name_for_target(canonical_name, raw_name),
+                        "canonical_name": canonical_name,
+                        "category": "fruit",
                         "px": px,
                         "py": py,
                         "bbox": self._parse_bbox(item),

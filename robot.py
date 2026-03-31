@@ -57,14 +57,14 @@ class Robot:
         return self.move_to(release_xyz[0], release_xyz[1], release_xyz[2])
 
     def gripper_open(self):
-        code = self.arm.set_gripper_position(self.gripper_open_val, wait=True)
+        code = self.arm.set_gripper_g2_position(self.gripper_open_val, speed=225, force=100, wait=True)
         if code != 0:
             raise RobotCommandError("gripper_open_failed", f"gripper_open failed with code={code}")
         return True
 
     def gripper_close(self):
         """Close gripper. Returns True if object grasped, False if empty grasp."""
-        code = self.arm.set_gripper_position(self.gripper_close_val, wait=True)
+        code = self.arm.set_gripper_g2_position(self.gripper_close_val, speed=225, force=100, wait=True)
         if code != 0:
             raise RobotCommandError("gripper_close_failed", f"gripper_close failed with code={code}")
         time.sleep(0.3)

@@ -200,7 +200,6 @@ def plan_grasp_for_object(detected_object, scan_images, cam, robot, rc, cc, intr
             eef_pose_m = [detect_x * 0.001, detect_y * 0.001, detect_z * 0.001, -3.14159, 0, 0]
 
         close_z = rc.get("close_detect_z", 200)
-        gripper_max = rc.get("gripper_max_opening", 84)
         gripper_z_mm = rc["gripper_z_mm"]
         grasp_depth_offset = rc.get("grasp_depth_offset", 0)
         grasping_min_z = rc["grasping_min_z"]
@@ -320,7 +319,7 @@ def plan_grasp_for_object(detected_object, scan_images, cam, robot, rc, cc, intr
             box = cv2.boxPoints(((rect_center), (rect_size), rect_angle))
             box = np.intp(box)
             cv2.drawContours(vis, [box], 0, (0, 255, 0), 2)
-            label = f"{long_dim_mm:.0f}x{short_dim_mm:.0f}mm (max_grip={gripper_max}mm)"
+            label = f"{long_dim_mm:.0f}x{short_dim_mm:.0f}mm"
             cv2.putText(vis, label, (refined.cx - 100, refined.cy - 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             if diagnostics is not None and scan_id:
@@ -334,10 +333,6 @@ def plan_grasp_for_object(detected_object, scan_images, cam, robot, rc, cc, intr
                 logger.info("[GRASP VIS] Saved: %s  (%s)", vis_path, label)
         except Exception as exc:
             logger.warning("Failed to save grasp visualization: %s", exc)
-
-        if short_dim_mm > gripper_max:
-            logger.warning("Object too large: %.0fmm > %.0fmm", short_dim_mm, gripper_max)
-            return None, "too_large"
 
         gripper_yaw = 0.0
         if refined.aspect_ratio >= ASPECT_THRESHOLD:

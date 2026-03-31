@@ -183,6 +183,7 @@ class PickResult:
     reason: str
     detected_object: DetectedObject | None = None
     grasp_plan: GraspPlan | None = None
+    verified: bool | None = None  # None=not checked, True=confirmed, False=object still present
 
 
 @dataclass(slots=True, frozen=True)

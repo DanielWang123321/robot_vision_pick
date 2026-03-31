@@ -11,7 +11,6 @@ robot:
   gripper_z_mm: 172
   grasp_depth_offset: 20
   grasping_min_z: 0
-  gripper_max_opening: 84
   gripper_open: 800
   gripper_close: 0
   min_object_dim_mm: 20

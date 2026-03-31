@@ -208,6 +208,7 @@ def _serialize_pick_result(pick_result):
     return {
         "success": pick_result.success,
         "reason": pick_result.reason,
+        "verified": pick_result.verified,
         "detected_object": None if pick_result.detected_object is None else _serialize_detected_object(pick_result.detected_object),
         "grasp_plan": _serialize_plan(pick_result.grasp_plan),
     }
@@ -488,6 +489,38 @@ class VisionPickSystem:
         else:
             pick_result = execute_grasp_plan(self.robot, plan, self.rc["release_xyz"])
 
+        # Post-place verification: re-scan to check if the picked object disappeared
+        if pick_result.success and not self.dry_run:
+            pick_result = self._verify_pick(pick_result, scan_result)
+
         log_pick_result(pick_result)
         self.diagnostics.record_pick(scan_result, pick_result, selected_assessment=selected_assessment)
         return pick_result
+
+    def _verify_pick(self, pick_result, prev_scan_result):
+        """Return to detect pose, re-scan, and check if the picked object disappeared."""
+        picked_name = pick_result.detected_object.canonical_name or pick_result.detected_object.name
+        prev_names = [obj.canonical_name or obj.name for obj in prev_scan_result.objects]
+
+        try:
+            logger.info("[Verify] Moving to detect pose for post-place check")
+            self.robot.move_to_detect(self.rc["detect_xyz"])
+            time.sleep(0.5)
+
+            _depth, color = self.cam.capture_for_detection()
+            after_detections = self.detector.detect_multi(color, max_retries=1)
+            after_names = [d.get("canonical_name") or d.get("name", "") for d in after_detections]
+
+            logger.info("[Verify] Before: %s", prev_names)
+            logger.info("[Verify] After:  %s", after_names)
+
+            if picked_name in after_names:
+                logger.warning("[Verify] %s still visible after place — pick likely failed", picked_name)
+                return replace(pick_result, success=False, reason="verify_still_present", verified=False)
+
+            logger.info("[Verify] %s disappeared — pick confirmed", picked_name)
+            return replace(pick_result, verified=True)
+
+        except Exception as exc:
+            logger.warning("[Verify] Verification failed, assuming success: %s", exc)
+            return pick_result

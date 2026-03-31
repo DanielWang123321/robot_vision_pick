@@ -15,8 +15,8 @@ class TestLLMDetector(unittest.TestCase):
         text = """```json
         [
           {
-            "name": "山竹",
-            "canonical_name": "mangosteen",
+            "name": "kiwi",
+            "canonical_name": "brown_kiwi",
             "category": "fruit",
             "grasp_point": {"px": 320, "py": 180},
             "bbox": {"x1": 280, "y1": 140, "x2": 360, "y2": 230},
@@ -30,30 +30,25 @@ class TestLLMDetector(unittest.TestCase):
         results = self.detector._parse_multi_response(text)
         self.assertEqual(len(results), 1)
         result = results[0]
-        self.assertEqual(result["name"], "山竹")
-        self.assertEqual(result["canonical_name"], "mangosteen")
+        self.assertEqual(result["name"], "\u7315\u7334\u6843")
+        self.assertEqual(result["canonical_name"], "brown_kiwi")
         self.assertEqual(result["category"], "fruit")
         self.assertEqual((result["px"], result["py"]), (320, 180))
         self.assertEqual(result["bbox"], {"x1": 280, "y1": 140, "x2": 360, "y2": 230})
         self.assertFalse(result["graspable"])
         self.assertEqual(result["grasp_reason"], "occluded by another object")
 
-    def test_parse_legacy_response_is_still_supported(self):
-        text = '[{"name": "纸巾", "px": 100, "py": 120, "confidence": 0.55}]'
+    def test_non_target_response_is_filtered_out(self):
+        text = '[{"name": "apple", "canonical_name": "apple", "px": 100, "py": 120, "confidence": 0.55}]'
         results = self.detector._parse_multi_response(text)
-        self.assertEqual(len(results), 1)
-        result = results[0]
-        self.assertEqual(result["category"], "unknown")
-        self.assertIsNone(result["bbox"])
-        self.assertTrue(result["graspable"])
-        self.assertEqual(result["canonical_name"], "纸巾")
+        self.assertEqual(results, [])
 
     def test_detect_multi_scales_bbox_and_point(self):
         color = np.zeros((1080, 1920, 3), dtype=np.uint8)
         mock_results = [
             {
-                "name": "苹果",
-                "canonical_name": "apple",
+                "name": "green grape bunch",
+                "canonical_name": "green_grape_bunch",
                 "category": "fruit",
                 "px": 320,
                 "py": 180,
@@ -71,7 +66,8 @@ class TestLLMDetector(unittest.TestCase):
         result = results[0]
         self.assertEqual((result["px"], result["py"]), (960, 540))
         self.assertEqual(result["bbox"], {"x1": 900, "y1": 450, "x2": 1020, "y2": 630})
-        self.assertEqual(result["canonical_name"], "apple")
+        self.assertEqual(result["name"], "\u4e00\u4e32\u7eff\u8272\u8461\u8404")
+        self.assertEqual(result["canonical_name"], "green_grape_bunch")
         self.assertEqual(result["category"], "fruit")
 
 
