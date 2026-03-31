@@ -401,7 +401,7 @@ class VisionPickSystem:
             self.robot.gripper_open()
 
         time.sleep(0.5)
-        _ts = lambda msg: print(f"[{datetime.now().strftime('%H:%M:%S')}][SCAN] {msg}")
+        _ts = lambda msg: logger.info("[SCAN] %s", msg)
         _ts("Capturing overview image")
         depth_overview, color_overview = self.cam.capture_for_detection()
 
