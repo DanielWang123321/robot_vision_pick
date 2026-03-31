@@ -2,7 +2,10 @@
 
 ## 重要提示
 
-项目对你只读，不要修改、删除、新增任何文件。
+- 项目对你只读，不要修改、删除、新增任何文件。
+- 你与用户的交互要保持简洁
+  - 告知用户桌面有什么，让用户选择抓取什么，
+  - 每次抓取完成后告知执行结果。
 
 ## 项目概述
 
@@ -11,17 +14,14 @@
 
 ## 环境准备
 
-```bash
 conda activate py312
-# 确保 .env 中有 OPENROUTER_KEY=your_key
-```
 
 ## 运行方式
 
 Openclaw 应使用**交互模式**，通过 stdin/stdout 与脚本交互：
 
 ```bash
-python main.py --interactive -v
+python main.py --interactive
 ```
 
 | 参数 | 作用 |
@@ -37,20 +37,6 @@ python main.py --interactive -v
 
 ### 1. 扫描阶段
 系统自动：移动到高位 (z=400mm) → 拍照 → LLM 识别 → 过滤 → 输出检测结果。
-
-输出格式：
-```
-========================================
-  Detected 2 object(s):
-========================================
-  1. [T1] 一串绿色葡萄  (category=fruit, score=8.2, confidence=0.95, graspable=yes, pixel=(960,540), bbox=(800,400)-(1120,680))
-     hint: round shape, easy to grasp
-  2. [T2] 猕猴桃  (category=fruit, score=7.5, confidence=0.88, graspable=yes, pixel=(1200,300), bbox=(1100,220)-(1300,380))
-     hint: oval shape
-  0. Exit
-========================================
-Choose object number to pick:
-```
 
 关键字段说明：
 - `[T1]`/`[T2]`：目标跟踪 ID（跨扫描保持一致）
