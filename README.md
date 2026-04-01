@@ -4,7 +4,7 @@
 
 ## 硬件
 
-- xArm 6 机械臂 (192.168.1.60)
+- xArm 6 机械臂 (192.168.1.xx)
 - Gripper G2 夹爪 (最大开口 84mm)
 - Intel RealSense D435 深度相机 (eye-in-hand)
 
@@ -44,6 +44,48 @@ python llm_detector.py <image_path>  # 测试 LLM 检测
 python robot.py           # 测试机械臂连接和夹爪
 ```
 
+## MCP Server（AI 智能体集成）
+
+通过 `mcp_server.py` 将视觉抓取系统暴露为 MCP 工具，支持 OpenClaw、Claude Desktop 等 AI 智能体调用。
+
+```bash
+python mcp_server.py
+```
+
+环境变量：
+
+| 变量 | 说明 |
+|------|------|
+| `VISION_PICK_DRY_RUN=1` | 干跑模式，跳过真实机械臂运动 |
+| `VISION_PICK_CONFIG` | 自定义配置文件路径（默认 config.yaml） |
+
+提供 3 个工具：
+
+| 工具 | 参数 | 说明 |
+|------|------|------|
+| `scan_table` | 无 | 扫描桌面，返回物体列表（含评分和抓取建议） |
+| `pick_object` | `target_id`（如 `"T1"`） | 抓取指定目标，需先调用 scan_table |
+| `get_status` | 无 | 获取系统状态（连接、抓取计数等） |
+
+MCP 客户端配置示例：
+
+```json
+{
+  "mcpServers": {
+    "vision-pick": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "<项目绝对路径>",
+      "env": {
+        "VISION_PICK_DRY_RUN": "0"
+      }
+    }
+  }
+}
+```
+
+典型流程：`scan_table` → 用户选择目标 → `pick_object` → 循环。详细用法参见 [CLAW_GUIDE.md](CLAW_GUIDE.md)。
+
 ## 流程
 
 1. 机械臂移动到高位拍照 (z=400mm)，D435 拍摄 RGB+深度 (1920x1080)
@@ -74,3 +116,5 @@ python robot.py           # 测试机械臂连接和夹爪
 | cv_refine.py | 深度分割检测、颜色匹配、物体朝向、夹爪 yaw 计算 |
 | coord_transform.py | 像素→相机系→基座标系坐标变换 + 深度常量定义 |
 | robot.py | xArm 6 + Gripper G2 控制 |
+| mcp_server.py | MCP tool 服务端，供 AI 智能体调用（scan/pick/status） |
+| CLAW_GUIDE.md | Claw工具 MCP 集成详细指南 |
