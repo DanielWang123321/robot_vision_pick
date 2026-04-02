@@ -16,7 +16,6 @@ import numpy as np
 from camera import RealSenseCamera
 from coord_transform import estimate_xy_from_height, lookup_depth, DEPTH_MIN_M, DEPTH_MAX_M
 from pick_models import PickResult, RobotCommandError, ScanResult
-from llm_detector import LLMDetector
 from pick_workflows import execute_grasp_plan, log_pick_result
 from pick_planner import plan_grasp_for_object
 from pick_selection import TargetTracker, assess_targets
@@ -334,9 +333,6 @@ class VisionPickSystem:
 
     def __init__(self, cfg, dry_run=False):
         load_dotenv()
-        api_key = os.getenv("OPENROUTER_KEY")
-        if not api_key:
-            raise RuntimeError("OPENROUTER_KEY not found in .env")
 
         self.cfg = cfg
         self.rc = cfg["robot"]
@@ -358,11 +354,32 @@ class VisionPickSystem:
         self.intrinsics = self.cam.get_intrinsics()
         logger.info("Intrinsics: fx=%.1f, fy=%.1f", self.intrinsics.fx, self.intrinsics.fy)
 
-        self.detector = LLMDetector(
-            api_key=api_key,
-            api_url=self.lc["openrouter_url"],
-            model=self.lc["model"],
-        )
+        # --- Detection backend selection ---
+        detection_cfg = cfg.get("detection", {})
+        backend = detection_cfg.get("backend", "llm")
+
+        if backend == "yolo":
+            from yolo_detector import YoloDetector
+            yolo_cfg = detection_cfg.get("yolo", {})
+            model_path = yolo_cfg.get("model_path", "models/grape_kiwi_best.pt")
+            self.detector = YoloDetector(
+                model_path=model_path,
+                conf_threshold=yolo_cfg.get("conf_threshold", 0.5),
+                iou_threshold=yolo_cfg.get("iou_threshold", 0.5),
+                device=yolo_cfg.get("device", "cpu"),
+            )
+            logger.info("Using YOLO detector: %s", model_path)
+        else:
+            from llm_detector import LLMDetector
+            api_key = os.getenv("OPENROUTER_KEY")
+            if not api_key:
+                raise RuntimeError("OPENROUTER_KEY not found in .env")
+            self.detector = LLMDetector(
+                api_key=api_key,
+                api_url=self.lc["openrouter_url"],
+                model=self.lc["model"],
+            )
+            logger.info("Using LLM detector: %s", self.lc["model"])
 
         self.robot = None
         if not dry_run:

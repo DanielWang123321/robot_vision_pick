@@ -25,6 +25,14 @@ camera:
   euler_eef_to_color: [0.067, -0.031, 0.022, -0.004, -0.008, 1.59]
   depth_sample_radius: 5
 
+detection:
+  backend: "llm"                             # "yolo" or "llm"
+  yolo:
+    model_path: "models/grape_kiwi_best.pt"
+    conf_threshold: 0.5
+    iou_threshold: 0.5
+    device: "cpu"                            # "cpu" or "0" (GPU)
+
 llm:
   openrouter_url: "https://openrouter.ai/api/v1/chat/completions"
   model: "anthropic/claude-sonnet-4.6"

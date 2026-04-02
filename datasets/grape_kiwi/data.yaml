@@ -1,0 +1,8 @@
+path: ./datasets/grape_kiwi
+train: train/images
+val: val/images
+
+nc: 2
+names:
+  0: green_grape_bunch
+  1: brown_kiwi

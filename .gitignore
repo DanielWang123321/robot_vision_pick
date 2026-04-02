@@ -9,5 +9,10 @@ diag_*.png
 grasp_log.csv
 diagnostics/
 .claude/
+.kilo/
 EASYCLAW_INTEGRATION.md
 docs/
+models/
+datasets/*
+!datasets/grape_kiwi/data.yaml
+runs/

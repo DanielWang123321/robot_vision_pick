@@ -73,12 +73,21 @@ def validate_config(cfg):
     if len(cc["euler_eef_to_color"]) != 6:
         raise ValueError("camera.euler_eef_to_color must have 6 elements [x,y,z,r,p,y]")
 
-    lc = cfg.get("llm")
-    if not lc:
-        raise ValueError("Missing 'llm' section in config")
-    for key in ("openrouter_url", "model"):
-        if key not in lc:
-            raise ValueError(f"Missing llm.{key} in config")
+    detection_cfg = cfg.get("detection", {})
+    backend = detection_cfg.get("backend", "llm")
+
+    if backend == "yolo":
+        yolo_cfg = detection_cfg.get("yolo", {})
+        model_path = yolo_cfg.get("model_path", "")
+        if not model_path:
+            raise ValueError("Missing detection.yolo.model_path in config")
+    else:
+        lc = cfg.get("llm")
+        if not lc:
+            raise ValueError("Missing 'llm' section in config")
+        for key in ("openrouter_url", "model"):
+            if key not in lc:
+                raise ValueError(f"Missing llm.{key} in config")
 
     dc = cfg.get("diagnostics")
     if dc:
@@ -95,6 +104,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Compute coordinates without moving robot")
     parser.add_argument("--loop", action="store_true", help="Continuously run pick and place")
     parser.add_argument("--interactive", action="store_true", help="Interactive mode: choose which object to pick")
+    parser.add_argument("--detector", choices=["yolo", "llm"], default=None,
+                        help="Override detection backend (yolo or llm)")
     parser.add_argument("--verbose", "-v", action="count", default=0, help="Increase logging verbosity (-v for INFO, -vv for DEBUG)")
     args = parser.parse_args()
 
@@ -112,6 +123,10 @@ def main():
     )
 
     cfg = load_config(args.config)
+
+    # CLI --detector overrides config file
+    if args.detector:
+        cfg.setdefault("detection", {})["backend"] = args.detector
 
     try:
         validate_config(cfg)
